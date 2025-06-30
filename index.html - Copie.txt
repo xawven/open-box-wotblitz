@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8" />
-<title>Ouverture de Boîtes - Web</title>
+<title>Ouverture de Boîtes world of tank blitz - Web</title>
 <style>
   body { font-family: Arial, sans-serif; margin: 20px; }
   nav { position: fixed; bottom: 0; left: 0; right: 0; background: #eee; padding: 10px; display: flex; justify-content: space-around; }

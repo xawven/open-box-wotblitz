@@ -1,199 +1,249 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8" />
-<title>Ouverture de Boîtes - Web</title>
-<style>
-  body { font-family: Arial, sans-serif; margin: 20px; }
-  nav { position: fixed; bottom: 0; left: 0; right: 0; background: #eee; padding: 10px; display: flex; justify-content: space-around; }
-  nav button { padding: 10px 20px; }
-  .screen { display: none; }
-  .active { display: block; }
-  .results, .inventory, .history, .collection { margin-top: 20px; }
-  textarea { width: 100%; height: 150px; }
-  .totals { position: fixed; top: 10px; right: 10px; background: #ddd; padding: 10px; border-radius: 5px; }
-</style>
+    <meta charset="UTF-8">
+    <title>Ouverture de Boîtes World Of Tank Blitz</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        button { margin: 5px; padding: 10px 20px; }
+        .popup, .historique, .inventaire, .resultats, .collection { border: 1px solid #333; padding: 10px; margin-top: 20px; display: none; background: #f9f9f9; }
+        textarea { width: 100%; height: 150px; }
+        .char-card { display: inline-block; padding: 5px 10px; margin: 5px; border: 1px solid #555; border-radius: 5px; background: #eee; }
+    </style>
 </head>
 <body>
 
 <h1>Ouverture de Boîtes</h1>
 
-<div class="totals" id="totals">Or: 0 | EXP: 0 | Amplis: 0</div>
+<button onclick="demanderNombreBoite('noire')">Ouvrir des Boîtes Noires I</button>
+<button onclick="demanderNombreBoite('mystere')">Ouvrir des Boîtes Mystérieuses I</button>
+<button onclick="afficherInventaire()">Voir et Ouvrir l'Inventaire</button>
+<button onclick="afficherHistorique()">Voir l'Historique</button>
+<button onclick="afficherCollection()">Voir la Collection</button>
 
-<!-- Ecrans -->
-<div id="accueil" class="screen active">
-  <button onclick="openBoxPrompt('Boîte Noire I')">Ouvrir Boîte Noire I</button>
-  <button onclick="openBoxPrompt('Boîte Mystérieuse I')">Ouvrir Boîte Mystérieuse I</button>
-</div>
-
-<div id="inventaire" class="screen">
-  <h2>Inventaire</h2>
-  <div id="inventory-list"></div>
-</div>
-
-<div id="historique" class="screen">
-  <h2>Historique</h2>
-  <textarea id="history-text" readonly></textarea>
-</div>
-
-<div id="collection" class="screen">
-  <h2>Collection (en construction)</h2>
-  <p>Bientôt disponible...</p>
-</div>
-
-<div class="results" id="results" style="display:none;">
-  <h3>Récompenses obtenues</h3>
-  <textarea id="result-text" readonly></textarea><br/>
-  <button onclick="hideResults()">Fermer</button>
-</div>
-
-<!-- Navigation en bas -->
-<nav>
-  <button onclick="showScreen('accueil')">Accueil</button>
-  <button onclick="showScreen('inventaire')">Inventaire</button>
-  <button onclick="showScreen('historique')">Historique</button>
-  <button onclick="showScreen('collection')">Collection</button>
-</nav>
+<div class="resultats" id="resultats"></div>
+<div class="popup" id="popup"></div>
+<div class="inventaire" id="inventaire"></div>
+<div class="historique" id="historique"></div>
+<div class="collection" id="collection"></div>
 
 <script>
-  // Données globales
-  const inventaire = {
-    "Boîte Noire II": 0, "Boîte Noire III": 0, "Boîte Noire IV": 0,
-    "Boîte Noire V": 0, "Boîte Noire VI": 0, "Boîte Noire VII": 0,
-    "Boîte Noire VIII": 0, "Boîte Noire IX": 0, "Boîte Noire X": 0,
-    "Boîte Mystérieuse II": 0, "Boîte Mystérieuse III": 0, "Boîte Grand Mystère": 0
-  };
+let inventaire = {
+    "Boîte Noire II": 0, "Boîte Noire III": 0, "Boîte Noire IV": 0, "Boîte Noire V": 0,
+    "Boîte Noire VI": 0, "Boîte Noire VII": 0, "Boîte Noire VIII": 0, "Boîte Noire IX": 0, "Boîte Noire X": 0,
+    "Boîte Mystérieuse II": 0, "Boîte Mystérieuse III": 0, "Boîte Grand Mystère": 0,
+    "Certificat Mystère": 0
+};
 
-  let totalOr = 0;
-  let totalExp = 0;
-  let totalAmplis = 0;
-  const historique = [];
+let historique = [];
+let collection = [];
+let charList = [
+    "121b","WZ-111 5A","114 SP2","Carro 45t","Strv K","AMX 30 B","Kpz 50 t","VK 90.01 (P)","Chieftain Mk. 6",
+    "Super Conqueror","FV217 Badger","Concept 1B","XM66F","T95E6","M60","Obj. 907","Obj. 260","Obj. 777 II","T-22 medium",
+    "Object 268/4","WZ-114","BZ-58-2","Char Futur 4","Lorraine 50 t","AMX 30 1er prot.","Kpz 70","T 55A","Cobra","TL-7-120",
+    // (… Ajoute ici toute ta liste complète de chars … jusqu'au dernier…)
+    "M4A2E4"
+];
 
-  // Affiche l'écran choisi, masque les autres
-  function showScreen(screenId) {
-    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-    document.getElementById(screenId).classList.add('active');
-    updateTotals();
-    if(screenId === 'inventaire') updateInventaire();
-    if(screenId === 'historique') updateHistorique();
-  }
+function intToRoman(n) {
+    let romans = ['I','II','III','IV','V','VI','VII','VIII','IX','X'];
+    return romans[n-1] || n;
+}
 
-  // Met à jour les totaux affichés
-  function updateTotals() {
-    document.getElementById('totals').textContent = `Or: ${totalOr} | EXP: ${totalExp} | Amplis: ${totalAmplis}`;
-  }
+function romanToInt(roman) {
+    let map = {'I':1,'II':2,'III':3,'IV':4,'V':5,'VI':6,'VII':7,'VIII':8,'IX':9,'X':10};
+    return map[roman] || 1;
+}
 
-  // Affiche l'inventaire
-  function updateInventaire() {
-    let html = "";
-    for (const [key, val] of Object.entries(inventaire)) {
-      if(val > 0) {
-        html += `<div>${key} : ${val} <button onclick="ouvrirBoiteInventaire('${key}')">Ouvrir</button></div>`;
-      }
+function rand(min, max) {
+    return Math.floor(Math.random() * (max - min +1)) + min;
+}
+
+function ouvrirBoiteNoire(niveau) {
+    let resultats = [];
+    let orGagne = Math.floor(Math.random() * (niveau * 100)) + 1;
+    let contenu = `${orGagne} pièces d'or`;
+
+    if (niveau >= 9 && Math.random() < 0.01) contenu += " / Arrière-plan de profil";
+    if (niveau < 10 && Math.random() < 0.2) {
+        let prochaineBoite = "Boîte Noire " + intToRoman(niveau + 1);
+        contenu += ` / ${prochaineBoite}`;
+        inventaire[prochaineBoite] = (inventaire[prochaineBoite] || 0) + 1;
     }
-    if(!html) html = "Inventaire vide.";
-    document.getElementById('inventory-list').innerHTML = html;
-  }
+    resultats.push(contenu);
+    return resultats;
+}
 
-  // Affiche l'historique
-  function updateHistorique() {
-    document.getElementById('history-text').value = historique.join("\n\n---\n\n") || "Aucune récompense obtenue pour l'instant.";
-  }
+function ouvrirBoiteMysterieuse(niveau) {
+    let resultats = [];
+    let chance = Math.random();
+    let contenu = "";
 
-  // Ouvre la popup pour choisir combien de boites ouvrir
-  function openBoxPrompt(type) {
-    let nb = prompt(`Combien de ${type} voulez-vous ouvrir ?`, "1");
-    nb = parseInt(nb);
-    if(nb > 0) ouvrirBoites(type, nb);
-  }
-
-  // Ouvre plusieurs boîtes
-  function ouvrirBoites(type, nb) {
-    const results = [];
-    for(let i=0; i<nb; i++) {
-      let res = ouvrirBoite(type);
-      results.push(res.texte);
-      // Màj totaux et inventaire déjà faite dans ouvrirBoite
-    }
-    historique.push(...results);
-    showResults(results.join("\n\n"));
-    updateTotals();
-  }
-
-  // Ouvre une boîte selon le type
-  function ouvrirBoite(type) {
-    let orGagne = 0, expGagne = 0, amplisGagne = 0;
-    let texte = `Reçu de la ${type} :\n- `;
-
-    if(type === "Boîte Noire I") {
-      // Exemple simple : 
-      orGagne = randomChoice([100, 200, 300, 400]);
-      expGagne = randomInt(1, 900);
-      amplisGagne = randomChoice([1,2,3]);
-
-      // Proba boite noire II ou III
-      if(Math.random() < 0.05) {
-        inventaire["Boîte Noire III"]++;
-        texte += "Boîte Noire III obtenue\n- ";
-      } else if(Math.random() < 0.20) {
-        inventaire["Boîte Noire II"]++;
-        texte += "Boîte Noire II obtenue\n- ";
-      }
-      texte += `${orGagne} or\n- ${expGagne} EXP libre\n- ${amplisGagne} amplis`;
-
-    } else if(type === "Boîte Mystérieuse I") {
-      orGagne = randomChoice([10, 20, 50, 100]);
-      expGagne = randomInt(1, 500);
-      amplisGagne = randomChoice([0,1,2]);
-
-      if(Math.random() < 0.10) {
-        inventaire["Boîte Mystérieuse II"]++;
-        texte += "Boîte Mystérieuse II obtenue\n- ";
-      }
-
-      texte += `${orGagne} or\n- ${expGagne} EXP libre\n- ${amplisGagne} amplis`;
+    if (niveau === 1) {
+        contenu = `${rand(10,50)} pièces`;
+        if (Math.random() < 1/15) inventaire["Boîte Mystérieuse II"]++;
+        if (Math.random() < 0.05) inventaire["Certificat Mystère"]++;
+    } else if (niveau === 2) {
+        contenu = `${rand(50,150)} pièces`;
+        if (Math.random() < 1/10) inventaire["Boîte Mystérieuse III"]++;
+        if (Math.random() < 0.10) inventaire["Certificat Mystère"]++;
+    } else if (niveau === 3) {
+        contenu = `${rand(100,300)} pièces`;
+        if (Math.random() < 1/10) inventaire["Boîte Grand Mystère"]++;
+        if (Math.random() < 0.15) inventaire["Certificat Mystère"]++;
+    } else if (niveau === 4) {
+        contenu = "Certificat grand mystère + plein de récompenses";
     }
 
-    totalOr += orGagne;
-    totalExp += expGagne;
-    totalAmplis += amplisGagne;
+    resultats.push(contenu);
+    return resultats;
+}
 
-    return {texte};
-  }
-
-  // Ouvrir une boîte depuis l'inventaire
-  function ouvrirBoiteInventaire(type) {
-    if(inventaire[type] > 0) {
-      inventaire[type]--;
-      let res = ouvrirBoite(type);
-      historique.push(res.texte);
-      updateInventaire();
-      updateTotals();
-      showResults(res.texte);
-    } else {
-      alert("Pas assez de boîtes dans l'inventaire !");
+function ouvrirCertificatMystere() {
+    let chanceParChar = 0.54 / 100;
+    let total = charList.length;
+    let randValue = Math.random();
+    let cumul = 0;
+    for (let i = 0; i < total; i++) {
+        cumul += chanceParChar;
+        if (randValue < cumul) {
+            let charGagne = charList[i];
+            ajouterALaCollection(charGagne);
+            historique.push(`Reçu depuis le Certificat Mystère : ${charGagne}`);
+            afficherResultats([`Reçu depuis le Certificat Mystère : ${charGagne}`]);
+            return;
+        }
     }
-  }
+    // Sécurité : si arrondi flottant
+    let charGagne = charList[total - 1];
+    ajouterALaCollection(charGagne);
+    historique.push(`Reçu depuis le Certificat Mystère : ${charGagne}`);
+    afficherResultats([`Reçu depuis le Certificat Mystère : ${charGagne}`]);
+}
 
-  // Afficher résultats dans la zone résultats
-  function showResults(text) {
-    document.getElementById('result-text').value = text;
-    document.getElementById('results').style.display = 'block';
-  }
+function ajouterALaCollection(charNom) {
+    if (!collection.includes(charNom)) {
+        collection.push(charNom);
+    }
+}
 
-  // Fermer la zone résultats
-  function hideResults() {
-    document.getElementById('results').style.display = 'none';
-  }
+function demanderNombreBoite(type) {
+    let html = `<p>Nombre de boîtes :</p>
+        <input type="number" id="nbBoites" min="1" value="1">
+        <br><button onclick="validerNbBoites('${type}')">Valider</button>`;
+    afficherPopup(html);
+}
 
-  // Utils
-  function randomChoice(arr) {
-    return arr[Math.floor(Math.random()*arr.length)];
-  }
-  function randomInt(min,max) {
-    return Math.floor(Math.random()*(max-min+1))+min;
-  }
+function validerNbBoites(type) {
+    let nb = parseInt(document.getElementById("nbBoites").value);
+    fermerPopup();
+    if (nb > 0) {
+        if (type === "noire") ouvrirBoitesNoires(nb);
+        else ouvrirBoitesMysteres(nb);
+    }
+}
 
+function ouvrirBoitesNoires(nb) {
+    let total = [];
+    for (let i = 0; i < nb; i++) {
+        let res = ouvrirBoiteNoire(1);
+        total.push(`Reçu de la Boîte Noire I :\n- ${res.join("\n- ")}`);
+        historique.push(`Reçu de la Boîte Noire I :\n- ${res.join("\n- ")}`);
+    }
+    afficherResultats(total);
+}
+
+function ouvrirBoitesMysteres(nb) {
+    let total = [];
+    for (let i = 0; i < nb; i++) {
+        let res = ouvrirBoiteMysterieuse(1);
+        total.push(`Reçu de la Boîte Mystérieuse I :\n- ${res.join("\n- ")}`);
+        historique.push(`Reçu de la Boîte Mystérieuse I :\n- ${res.join("\n- ")}`);
+    }
+    afficherResultats(total);
+}
+
+function afficherInventaire() {
+    let contenu = "";
+    for (let boite in inventaire) {
+        if (inventaire[boite] > 0) {
+            contenu += `${boite} : ${inventaire[boite]} <button onclick="ouvrirDepuisInventaire('${boite}')">Ouvrir</button><br>`;
+        }
+    }
+    if (!contenu) contenu = "Inventaire vide.";
+    document.getElementById("inventaire").innerHTML = `<h3>Inventaire</h3>${contenu}`;
+    cacherTout();
+    document.getElementById("inventaire").style.display = "block";
+}
+
+function ouvrirDepuisInventaire(boiteNom) {
+    inventaire[boiteNom]--;
+    if (boiteNom.includes("Noire")) {
+        let niveau = romanToInt(boiteNom.split(" ").pop());
+        let res = ouvrirBoiteNoire(niveau);
+        historique.push(`Reçu de la ${boiteNom} :\n- ${res.join("\n- ")}`);
+        afficherResultats([`Reçu de la ${boiteNom} :\n- ${res.join("\n- ")}`]);
+    } else if (boiteNom.includes("Mystérieuse")) {
+        let niveau = 1;
+        if (boiteNom.includes("Grand")) niveau = 4;
+        else niveau = romanToInt(boiteNom.split(" ").pop());
+        let res = ouvrirBoiteMysterieuse(niveau);
+        historique.push(`Reçu de la ${boiteNom} :\n- ${res.join("\n- ")}`);
+        afficherResultats([`Reçu de la ${boiteNom} :\n- ${res.join("\n- ")}`]);
+    } else if (boiteNom.includes("Certificat")) {
+        ouvrirCertificatMystere();
+    }
+}
+
+function afficherHistorique() {
+    let contenu = historique.length ? historique.join("\n\n---\n\n") : "Aucune récompense encore.";
+    document.getElementById("historique").innerHTML = `<h3>Historique</h3><textarea readonly>${contenu}</textarea>`;
+    cacherTout();
+    document.getElementById("historique").style.display = "block";
+}
+
+function afficherCollection() {
+    let contenu = "";
+    if (collection.length === 0) contenu = "Aucun char obtenu pour le moment.";
+    else {
+        collection.forEach(nom => {
+            contenu += `<div class="char-card">${nom}</div>`;
+        });
+    }
+    document.getElementById("collection").innerHTML = `<h3>Ma Collection de Chars</h3>${contenu}`;
+    cacherTout();
+    document.getElementById("collection").style.display = "block";
+}
+
+function afficherResultats(resultats) {
+    let html = `<h3>Récompenses obtenues</h3><textarea readonly>${resultats.join("\n\n")}</textarea><br>
+    <button onclick="fermerResultats()">Fermer</button>
+    <button onclick="afficherHistorique()">Voir l'historique</button>`;
+    document.getElementById("resultats").innerHTML = html;
+    cacherTout();
+    document.getElementById("resultats").style.display = "block";
+}
+
+function fermerResultats() {
+    document.getElementById("resultats").style.display = "none";
+}
+
+function afficherPopup(html) {
+    document.getElementById("popup").innerHTML = html + `<br><button onclick="fermerPopup()">Annuler</button>`;
+    document.getElementById("popup").style.display = "block";
+}
+
+function fermerPopup() {
+    document.getElementById("popup").style.display = "none";
+}
+
+function cacherTout() {
+    document.getElementById("resultats").style.display = "none";
+    document.getElementById("popup").style.display = "none";
+    document.getElementById("inventaire").style.display = "none";
+    document.getElementById("historique").style.display = "none";
+    document.getElementById("collection").style.display = "none";
+}
 </script>
 
 </body>
